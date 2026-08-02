@@ -3,7 +3,7 @@
 A simple web control pad to send commands (forward/backward/left/right/stop) to a robot via buttons or voice. Commands are stored in a MySQL database; the robot polls and reads the latest one.
 
 **Main control pad**
-<img width="324" height="334" alt="image" src="https://github.com/user-attachments/assets/5a3ff3fc-7f77-4526-bd80-e9b273c7c42a" />
+<img width="324" height="344" alt="image" src="https://github.com/user-attachments/assets/5a3ff3fc-7f77-4526-bd80-e9b273c7c42a" />
 
 
 ## Files
