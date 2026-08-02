@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Pad</title>
+<style>
+  body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .control-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 120px);
+    grid-template-rows: repeat(3, 70px);
+    gap: 20px;
+    justify-items: center;
+    align-items: center;
+    direction: ltr;
+  }
+
+  .btn {
+    width: 100%;
+    height: 100%;
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    color: #222;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+  }
+
+  .btn:hover { background: #f5f5f5; }
+  .btn.stop { border-color: red; }
+
+  .forward  { grid-column: 2; grid-row: 1; }
+  .left     { grid-column: 1; grid-row: 2; }
+  .stop     { grid-column: 2; grid-row: 2; }
+  .right    { grid-column: 3; grid-row: 2; }
+  .backward { grid-column: 2; grid-row: 3; }
+
+  #status {
+    margin-top: 25px;
+    font-size: 16px;
+    color: #444;
+    text-align: center;
+  }
+
+  /* ==== قسم التحكم الصوتي ==== */
+  .voice-section {
+    margin-top: 35px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #micBtn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    background: #fff;
+    font-size: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s ease;
+  }
+
+  #micBtn:hover { background: #f5f5f5; }
+
+  #micBtn.listening {
+    border-color: #e53935;
+    background: #ffebee;
+    animation: pulse 1.2s infinite;
+  }
+
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.4); }
+    70%  { box-shadow: 0 0 0 16px rgba(229, 57, 53, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+  }
+
+  #voiceLabel {
+    font-size: 14px;
+    color: #666;
+  }
+
+  #voiceHeard {
+    font-size: 14px;
+    color: #888;
+    min-height: 18px;
+  }
+
+  #voiceUnsupported {
+    font-size: 13px;
+    color: #b00;
+    display: none;
+    max-width: 320px;
+    text-align: center;
+  }
+
+  .lang-toggle {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .lang-toggle button {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+
+  .lang-toggle button.active {
+    background: #222;
+    color: #fff;
+    border-color: #222;
+  }
+</style>
+</head>
+<body>
+
+  <div class="control-pad">
+    <button class="btn forward"  onclick="sendCommand('forward')">forward</button>
+    <button class="btn left"     onclick="sendCommand('left')">left</button>
+    <button class="btn stop"     onclick="sendCommand('stop')">stop</button>
+    <button class="btn right"    onclick="sendCommand('right')">right</button>
+    <button class="btn backward" onclick="sendCommand('backward')">backward</button>
+  </div>
+
+  <div id="status">جاهز</div>
+
+  <div class="voice-section">
+    <div class="lang-toggle">
+      <button id="langAr" class="active" onclick="setLang('ar-SA')">العربية</button>
+      <button id="langEn" onclick="setLang('en-US')">English</button>
+    </div>
+    <button id="micBtn" title="اضغط وتكلم">🎤</button>
+    <div id="voiceLabel">اضغط على الميكروفون وقل أمر مثل: أمام / خلف / يمين / يسار / قف</div>
+    <div id="voiceHeard"></div>
+    <div id="voiceUnsupported">
+      المتصفح الحالي لا يدعم التعرف على الصوت. جرّب Chrome على أندرويد أو الكمبيوتر.
+    </div>
+  </div>
+
+  <script>
+    function sendCommand(cmd) {
+      document.getElementById('status').innerText = 'جاري الإرسال...';
+
+      fetch('update_command.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'command=' + encodeURIComponent(cmd)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          document.getElementById('status').innerText =
+            'تم تحديث الجدول: ' + data.button + ' -> "' + data.stored_as + '"';
+        } else {
+          document.getElementById('status').innerText = 'خطأ: ' + data.message;
+        }
+      })
+      .catch(err => {
+        document.getElementById('status').innerText = 'فشل الاتصال بالسيرفر';
+      });
+    }
+
+    /* ==== التحكم الصوتي ==== */
+
+    // كلمات لكل أمر (عربي + إنجليزي) - يقبل عدة صيغ ومرادفات
+    const voiceMap = [
+      { cmd: 'forward',  words: ['أمام', 'قدام', 'روح قدام', 'forward', 'go forward', 'ahead'] },
+      { cmd: 'backward', words: ['خلف', 'ورا', 'رجوع', 'backward', 'back', 'go back'] },
+      { cmd: 'left',     words: ['يسار', 'شمال', 'left', 'go left'] },
+      { cmd: 'right',    words: ['يمين', 'right', 'go right'] },
+      { cmd: 'stop',     words: ['قف', 'وقف', 'توقف', 'stop', 'halt'] },
+    ];
+
+    let currentLang = 'ar-SA';
+    let recognition = null;
+    let isListening = false;
+
+    const micBtn = document.getElementById('micBtn');
+    const voiceHeard = document.getElementById('voiceHeard');
+    const voiceUnsupported = document.getElementById('voiceUnsupported');
+    const statusEl = document.getElementById('status');
+
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function setLang(lang) {
+      currentLang = lang;
+      document.getElementById('langAr').classList.toggle('active', lang === 'ar-SA');
+      document.getElementById('langEn').classList.toggle('active', lang === 'en-US');
+      if (recognition) {
+        recognition.lang = currentLang;
+      }
+    }
+
+    function matchCommand(transcript) {
+      const text = transcript.trim().toLowerCase();
+      for (const entry of voiceMap) {
+        for (const word of entry.words) {
+          if (text.includes(word.toLowerCase())) {
+            return entry.cmd;
+          }
+        }
+      }
+      return null;
+    }
+
+    if (!SpeechRecognitionAPI) {
+      voiceUnsupported.style.display = 'block';
+      micBtn.disabled = true;
+      micBtn.style.opacity = '0.4';
+      micBtn.style.cursor = 'not-allowed';
+    } else {
+      recognition = new SpeechRecognitionAPI();
+      recognition.lang = currentLang;
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add('listening');
+        voiceHeard.innerText = 'جاري الاستماع...';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        voiceHeard.innerText = 'سمعت: "' + transcript + '"';
+
+        const cmd = matchCommand(transcript);
+        if (cmd) {
+          sendCommand(cmd);
+        } else {
+          statusEl.innerText = 'لم أتعرف على أمر مطابق';
+        }
+      };
+
+      recognition.onerror = (event) => {
+        voiceHeard.innerText = 'خطأ في التعرف على الصوت: ' + event.error;
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+      };
+
+      micBtn.addEventListener('click', () => {
+        if (isListening) {
+          recognition.stop();
+        } else {
+          recognition.start();
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
